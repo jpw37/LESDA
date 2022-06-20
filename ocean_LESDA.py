@@ -71,7 +71,7 @@ class Ocean_LESDA(BaseSimulator):
         self.problem.add_equation("zeta - dx(dx(psi)) - dy(dy(psi)) = 0", condition="(nx != 0) or (ny != 0)")
 
         # Setup evolution equations
-        self.problem.add_equation('dt(zeta) + nu4*(dx(dx(dx(dx(zeta)))) + dy(dy(dy(dy(zeta)))) + 2*dx(dx(dy(dy(zeta))))) )- nu*(dx(dx(zeta)) + dy(dy(zeta))) = - v*dx(zeta) - w*dy(zeta) - Cd*(dx(w*u) - dy(v*u)) + F - mu*(zeta-nudge) - delta_nu4*(dx(dx(dx(dx(zeta)))) + dy(dy(dy(dy(zeta)))) + 2*dx(dx(dy(dy(zeta))))) ')
+        self.problem.add_equation("dt(zeta) + nu4*(dx(dx(dx(dx(zeta)))) + dy(dy(dy(dy(zeta)))) + 2*dx(dx(dy(dy(zeta))))) - nu*(dx(dx(zeta)) + dy(dy(zeta))) = - v*dx(zeta) - w*dy(zeta) - Cd*(dx(w*u) - dy(v*u)) + F - mu*(zeta-nudge) - delta_nu4*(dx(dx(dx(dx(zeta)))) + dy(dy(dy(dy(zeta)))) + 2*dx(dx(dy(dy(zeta))))) ")
 
         # Add additional conditions
         self.problem.add_equation("psi = 0", condition="(nx == 0) and (ny == 0)")
@@ -184,11 +184,11 @@ class Ocean_LESDA(BaseSimulator):
         # denominator of simple update
         del4_ip_temp = self.problem.domain.new_field()
         del4_ip_temp.set_scales(3/2)
-        del4_ip_temp[‘g’] = self.solver.state[‘zeta_’].differentiate(x=4) + self.solver.state[‘zeta_’].differentiate(y=4) + 2*self.solver.state[‘zeta_’].differentiate(x=2)*self.solver.state[‘zeta_’].differentiate(y=2)  
+        del4_ip_temp['g'] = self.solver.state['zeta_'].differentiate(x=4) + self.solver.state['zeta_'].differentiate(y=4) + 2*self.solver.state['zeta_'].differentiate(x=2,y=2)  
 
-        adjust_nu4 = self.mu*de.operators.integrate(proj_zeta_err**2, ‘x’, ‘y’)[‘g’][0,0]/de.operators.integrate(del4_ip_temp*proj_zeta_err, ‘x’, ‘y’)[‘g’][0,0]
+        adjust_nu4 = self.mu*de.operators.integrate(proj_zeta_err**2, 'x', 'y')['g'][0,0]/de.operators.integrate(del4_ip_temp*proj_zeta_err, 'x', 'y')['g'][0,0]
 
-        return float(self.problem.parameters['delta_nu4'].args[0]-adjust_nu4))
+        return float(self.problem.parameters['delta_nu4'].args[0]-adjust_nu4)
 
     def run_simulation(self):
 
@@ -211,6 +211,9 @@ class Ocean_LESDA(BaseSimulator):
                                  max_dt=0.01, min_dt=1e-11)
         cfl.add_velocities(('v',  'w' ))
 
+        #JPW: check this value later
+        dt = 1e-3
+
         while self.solver.ok:
 
             # Get solver time
@@ -232,14 +235,14 @@ class Ocean_LESDA(BaseSimulator):
             if self.solver.iteration == 0:
 
                 # Use initial guesses
-                delta_nu4_new = 0.
+                delta_nu4_est = 0.
 
-                elif self.solver.iteration % 100 == 0:
+            elif self.solver.iteration % 100 == 0:
 
-                    # Get update
-                    delta_nu4_est = self.new_params()
+                # Get update
+                delta_nu4_est = self.new_params()
 
-                    print("New nu4: ", delta_nu4_est + self.nu4)
+                print("New nu4: ", delta_nu4_est + self.nu4)
             
 
             # Set delta_nu4 initially                                                                                                              
